@@ -1,0 +1,65 @@
+version: "1"
+services:
+    php:
+        build:
+            context: .
+            target: php
+            args:
+                - APP_ENV=${APP_ENV}
+            dockerfile: Dockerfile
+        environment:
+            - APP_ENV=${APP_ENV}
+            - CONTAINER_ROLE=app
+        working_dir: /var/www/html
+        volumes:
+            - ./:/var/www/html
+        ports:
+            - 8000:8000
+        depends_on:
+            - redis
+        networks:
+            - reiz
+    redis:
+        image: 'redis:alpine'
+        command: >
+            --requirepass ${REDIS_PASSWORD}
+        env_file:
+            - .env
+        ports:
+            - 6379:6379
+        volumes:
+            - 'reiz-redis:/data'
+        networks:
+            - reiz
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+
+    queue:
+        build:
+            context: .
+            target: php
+            args:
+                - APP_ENV=${APP_ENV}
+        environment:
+            - APP_ENV=${APP_ENV}
+            - CONTAINER_ROLE=queue
+        working_dir: /var/www/html
+        depends_on:
+            - redis
+            - php
+        volumes:
+            - ./:/var/www/html
+        networks:
+            - reiz
+
+networks:
+    reiz:
+        driver: bridge
+volumes:
+    reiz-redis:
+        driver: local
